@@ -1,2 +1,10 @@
 
 .venv/
+
+__pycache__/
+
+*.Identifier
+
+device_status.log
+
+local_config.py
