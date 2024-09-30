@@ -1,7 +1,7 @@
 import sys
-from PyQt6.QtCore import Qt, QTimer, QRunnable, QThreadPool, pyqtSlot, QSize, QObject, pyqtSignal
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer, QRunnable, QThreadPool, Slot, Signal, QSize, QObject
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
     QApplication,
     QLabel,
     QWidget,
@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QStyle,
+    QStyledItemDelegate
 )
 import os
 import platform
@@ -35,7 +36,7 @@ logging.basicConfig(
 # Constants
 UPDATE_DELAY = 1000  # 1 second
 NETWORK_UPDATE_MULTIPLIER = 5  # 5 seconds
-DEVICE_CHECK_MULTIPLIER = 1  # 1 minute for quicker testing
+DEVICE_CHECK_MULTIPLIER = 5  # 5 minutes for scanning devices
 ONLINE = "Online"
 OFFLINE = "Offline"
 
@@ -54,8 +55,8 @@ def get_size(bytes):
 
 
 class WorkerSignals(QObject):
-    result = pyqtSignal(object)
-    error = pyqtSignal(str)
+    result = Signal(object)
+    error = Signal(str)
 
 
 class Worker(QRunnable):
@@ -69,19 +70,21 @@ class Worker(QRunnable):
         self.kwargs = kwargs
         self.signals = WorkerSignals()
 
-    @pyqtSlot()
+    @Slot()
     def run(self):
         """
         Execute the function and emit the result via signal.
         """
         try:
             result = self.fn(*self.args, **self.kwargs)
-            self.signals.result.emit(result)
+            if self.signals.result is not None:
+                self.signals.result.emit(result)
         except Exception as e:
             error_message = f"Error in Worker.run(): {e}"
             print(error_message)
             logging.error(error_message)
-            self.signals.error.emit(str(e))
+            if self.signals.error is not None:
+                self.signals.error.emit(str(e))
 
 
 class DraggableStyledWidget(QWidget):
@@ -94,7 +97,7 @@ class DraggableStyledWidget(QWidget):
         # Apply stylesheet
         self.setStyleSheet("""
             QWidget#main_widget {
-                background-color: rgba(0, 0, 0, 180);
+                background-color: rgba(0,0,0,0);
                 border-radius: 10px;
                 color: white;
                 padding: 10px;
@@ -119,16 +122,29 @@ class DraggableStyledWidget(QWidget):
                 padding: 4px;
                 border: 1px solid rgba(255, 255, 255, 100);
             }
+            QWidget#floating_widget {
+                background-color: rgba(0, 0, 0, 220);
+                border-radius: 10px;
+                color: white;
+                padding: 10px;
+                border: 2px solid rgba(55, 55, 55, 220);
+            }
         """)
 
         # Window settings
         self.setWindowTitle("Styled Draggable Desktop Widget")
-        self.setGeometry(100, 100, 800, 600)
-        self.setWindowFlags(
-            Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.FramelessWindowHint
-        )
-        # self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+
+        # Get the screen resolution
+        screen_height = QApplication.primaryScreen().availableGeometry().height()
+
+        # Calculate the desired height
+        desired_height = screen_height
+
+        # Set the window geometry
+        self.setGeometry(0, 0, 600, desired_height)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowOpacity(0.8)
 
         # Initialize dictionaries
         self.last_status = {}
@@ -155,7 +171,7 @@ class DraggableStyledWidget(QWidget):
 
         self.title_label = QLabel("System Monitor & Device Status", self)
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(10)
         self.title_label.setFont(title_font)
         self.title_label.setStyleSheet("color: white; background-color: transparent;")
 
@@ -173,11 +189,11 @@ class DraggableStyledWidget(QWidget):
                 border: none;
             }
             QPushButton:hover {
-                background-color: rgba(255, 0, 0, 50);
+                background-color: rgba(255, 0, 0, 150);
                 border-radius: 5px;
             }
         """)
-        self.close_button.clicked.connect(self.close)
+        self.close_button.clicked.connect(self.initiate_close)
 
         top_layout.addWidget(self.title_label)
         top_layout.addWidget(spacer)
@@ -186,24 +202,71 @@ class DraggableStyledWidget(QWidget):
         # System info label
         self.system_info_label = QLabel("Fetching system and device info...", self)
         self.system_info_label.setFont(title_font)
-        self.system_info_label.setStyleSheet("""
-            background-color: rgba(0, 0, 0, 180);
-            border-radius: 10px;
-            color: white;
-            padding: 10px;
-            border: 2px solid rgba(55, 55, 55, 180);
-        """)
+        self.system_info_label.setObjectName('floating_widget')
         self.system_info_label.setWordWrap(True)
+
+        # Adjust font size for the entire table
+        font = QFont()
+        font.setPointSize(7)  # Set font size to 8pt
+
+        # Adjust the font size for the header
+        header_font = QFont()
+        header_font.setPointSize(7)  # Set header font size to 8pt
+        header_font.setBold(True)
+        header_font.setCapitalization(QFont.Capitalization.AllUppercase)
 
         # Device status table
         self.table = QTableWidget(self)
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["Device Name", "Resource", "Type", "Value", "Status", "Response Time (ms)"])
+        self.table.setHorizontalHeaderLabels(["Device Name", "Resource", "Type", "Value", "Status", "Ping (ms)"])
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setObjectName('floating_widget')
+        # Set a custom stylesheet to make the scrollbar thin
+        self.table.setStyleSheet("""
+            QScrollBar:vertical {
+                border: none;
+                background: #333;
+                opacity: 0.5;
+                width: 8px;    /* Set the width of the vertical scrollbar */
+                margin: 0px 0px 0px 0px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #605F5F;
+                min-height: 20px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+            }
+            QScrollBar:horizontal {
+                border: none;
+                background: #2A2929;
+                height: 8px;   /* Set the height of the horizontal scrollbar */
+                margin: 0px 0px 0px 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #605F5F;
+                min-width: 20px;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                border: none;
+                background: none;
+            }
+        """)
+
+        # Make the columns fit the content
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # Stretch the last two columns to fill the remaining space
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # "Resource" column
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # "Ping (ms)" column
+        self.table.horizontalHeader().setFont(header_font)
+        self.table.horizontalHeader().setDefaultSectionSize(20)
+
+        # Hide the vertical header (row numbers)
+        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(16)  # Default row height
 
         # Add widgets to main layout
         main_layout.addLayout(top_layout)
@@ -239,16 +302,54 @@ class DraggableStyledWidget(QWidget):
         # Perform initial device check
         self.run_check_devices_task()
 
-    # Draggable functionality
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.oldPos = event.globalPosition().toPoint()
+    def closeEvent(self, event):
+        """
+        Handle the event when the window is closed by the user or system.
+        """
+        self.handle_close()
+        event.accept()  # Ensure the window actually closes
 
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            delta = event.globalPosition().toPoint() - self.oldPos
-            self.move(self.x() + delta.x(), self.y() + delta.y())
-            self.oldPos = event.globalPosition().toPoint()
+    def initiate_close(self):
+        """
+        This method is called when the close button is clicked.
+        Updates the UI to reflect the closing state, then closes the application.
+        """
+        # Change the title label to "Closing..."
+        self.title_label.setText("Closing...")
+
+        # Process pending events to immediately show the updated label
+        QApplication.processEvents()
+
+        self.threadpool.waitForDone()  # Wait for all threads to finish
+
+        # Trigger the window's close event
+        self.close()
+
+    def handle_close(self):
+        """
+        Handle the application close event, clean up timers and resources.
+        """
+        # Stop all timers
+        self.timer_general_info.stop()
+        self.timer_network_info.stop()
+        self.timer_device_check.stop()
+
+        # Log the close event
+        logging.info("Application closed")
+
+        # Exit the application cleanly
+        QApplication.instance().quit()
+
+    # Draggable functionality
+    # def mousePressEvent(self, event):
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         self.oldPos = event.globalPosition().toPoint()
+
+    # def mouseMoveEvent(self, event):
+    #     if event.buttons() == Qt.MouseButton.LeftButton:
+    #         delta = event.globalPosition().toPoint() - self.oldPos
+    #         self.move(self.x() + delta.x(), self.y() + delta.y())
+    #         self.oldPos = event.globalPosition().toPoint()
 
     def run_general_info_task(self):
         worker = Worker(self.update_system_info)
@@ -512,7 +613,7 @@ class DraggableStyledWidget(QWidget):
             f"CPU Usage: {self.data['cpu_usage']}%\n"
             f"Memory Usage: {self.data['memory_usage']} / {self.data['total_memory']}\n"
             f"Upload Speed: {self.data['upload_speed']}/s\n"
-            f"Download Speed: {self.data['download_speed']}/s\n"
+            f"Download Speed: {self.data['download_speed']}/s"
         )
 
         self.system_info_label.setText(system_info)
@@ -524,65 +625,88 @@ class DraggableStyledWidget(QWidget):
         existing_keys = set(self.table_rows.keys())
         updated_keys = set()
 
+        # Cell font
+        cell_font = QFont()
+        cell_font.setPointSize(7)
+        cell_font.setBold(True)
+        cell_font.setCapitalization(QFont.Capitalization.AllUppercase)
+
+        # Prepare a sorted list of devices based on their status
+        sorted_devices = []
         for device_name, resources in self.data["devices"].items():
-            print(f"  Device: {device_name}")  # Debug
             for resource_name, status_info in resources.items():
                 key = (device_name, resource_name)
-                updated_keys.add(key)
-
-                # Check if the key exists in the mapping
-                if key in self.table_rows:
-                    row = self.table_rows[key]
-                    print(f"    Updating existing resource: {resource_name}")  # Debug
-                else:
-                    # Insert a new row
-                    row = self.table.rowCount()
-                    self.table.insertRow(row)
-                    self.table_rows[key] = row
-                    print(f"    Inserting new resource: {resource_name}")  # Debug
-
-                # Device Name
-                device_item = QTableWidgetItem(device_name)
-                device_item.setFlags(Qt.ItemFlag.ItemIsEnabled)  # Make item read-only
-                self.table.setItem(row, 0, device_item)
-
-                # Resource Name
-                resource_item = QTableWidgetItem(resource_name)
-                resource_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                self.table.setItem(row, 1, resource_item)
-
-                # Type (Determine based on device config)
-                resource_type = self.get_resource_type(device_name, resource_name)
-                type_item = QTableWidgetItem(resource_type)
-                type_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                self.table.setItem(row, 2, type_item)
-
-                # Value
-                value = self.get_resource_value(device_name, resource_name)
-                value_item = QTableWidgetItem(value)
-                value_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                self.table.setItem(row, 3, value_item)
-
-                # Status
                 status = status_info["status"]
-                status_item = QTableWidgetItem(status)
-                status_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                # Color coding for status
-                if status == ONLINE:
-                    status_item.setForeground(Qt.GlobalColor.green)
-                else:
-                    status_item.setForeground(Qt.GlobalColor.red)
-                self.table.setItem(row, 4, status_item)
+                # Add each resource to the list along with its status
+                sorted_devices.append((device_name, resource_name, status_info))
 
-                # Response Time
-                response_time = status_info["response_time"]
-                if response_time:
-                    response_time_str = f"{response_time:.2f}"
-                else:
-                    response_time_str = "N/A"
-                response_time_item = QTableWidgetItem(response_time_str)
-                response_time_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                self.table.setItem(row, 5, response_time_item)
+        # Sort devices: Place "Offline" ones first
+        sorted_devices.sort(key=lambda item: item[2]["status"] == ONLINE)
+
+        # Populate the table with sorted devices
+        for device_name, resource_name, status_info in sorted_devices:
+            key = (device_name, resource_name)
+            updated_keys.add(key)
+
+            # Check if the key exists in the mapping
+            if key in self.table_rows:
+                row = self.table_rows[key]
+                print(f"    Updating existing resource: {resource_name}")  # Debug
+            else:
+                # Insert a new row
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                self.table_rows[key] = row
+                print(f"    Inserting new resource: {resource_name}")  # Debug
+
+            # Device Name
+            device_item = QTableWidgetItem(device_name)
+            device_item.setFlags(Qt.ItemFlag.ItemIsEnabled)  # Make item read-only
+            device_item.setFont(cell_font)
+            self.table.setItem(row, 0, device_item)
+
+            # Resource Name
+            resource_item = QTableWidgetItem(resource_name)
+            resource_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            resource_item.setFont(cell_font)
+            self.table.setItem(row, 1, resource_item)
+
+            # Type (Determine based on device config)
+            resource_type = self.get_resource_type(device_name, resource_name)
+            type_item = QTableWidgetItem(resource_type)
+            type_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            type_item.setFont(cell_font)
+            self.table.setItem(row, 2, type_item)
+
+            # Value
+            value = self.get_resource_value(device_name, resource_name)
+            value_item = QTableWidgetItem(value)
+            value_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            value_item.setFont(cell_font)
+            self.table.setItem(row, 3, value_item)
+
+            # Status
+            status = status_info["status"]
+            status_item = QTableWidgetItem(status)
+            status_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            status_item.setFont(cell_font)
+            # Color coding for status
+            if status == ONLINE:
+                status_item.setForeground(Qt.GlobalColor.green)
+            else:
+                status_item.setForeground(Qt.GlobalColor.red)
+            self.table.setItem(row, 4, status_item)
+
+            # Response Time
+            response_time = status_info["response_time"]
+            if response_time:
+                response_time_str = f"{response_time:.2f}"
+            else:
+                response_time_str = "N/A"
+            response_time_item = QTableWidgetItem(response_time_str)
+            response_time_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            response_time_item.setFont(cell_font)
+            self.table.setItem(row, 5, response_time_item)
 
         # Optional: Remove rows that are no longer present
         keys_to_remove = existing_keys - updated_keys
