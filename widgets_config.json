@@ -1,0 +1,105 @@
+[
+    {
+      "type": "widgetContainer",
+      "position": [50, 50],
+      "size": [400, 300],
+      "title": {
+        "text": "Data Container",
+        "style": {
+          "font-size": "18",
+          "color": "black"
+        }
+      },
+      "closable": true,
+      "closeButton": {
+        "text": "Close",
+        "position": [350, 10],
+        "style": {
+          "color": "white",
+          "background-color": "red",
+          "border": "2px solid white",
+          "font-size": "14"
+        }
+      },
+      "style": {
+        "background-color": "rgba(0, 0, 0, 150)",
+        "border": "2px solid black",
+        "border-radius": "0"
+      },
+      "widgets": [
+        {
+          "type": "button",
+          "text": "Load Data into Table",
+          "position": [10, 50],
+          "size": [150, 50],
+          "style": {
+            "background-color": "lightgreen",
+            "font-size": "16"
+          },
+          "action": [
+            {
+              "type": "shell",
+              "command": "echo 'Name, Age\\nAlice, 30\\nBob, 25'",
+              "outputTarget": "dataTable"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "text": "Show Message in Label",
+          "position": [10, 120],
+          "size": [150, 50],
+          "style": {
+            "background-color": "lightblue",
+            "font-size": "16"
+          },
+          "action": [
+            {
+              "type": "python",
+              "function": "greet_user",
+              "outputTarget": "messageLabel"
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "id": "dataTable",
+          "position": [180, 50],
+          "size": [200, 150],
+          "columns": ["Name", "Age"],
+          "style": {
+            "table": {
+              "background-color": "#2E2E2E",
+              "border": "1px solid #666"
+            },
+            "cell": {
+              "background-color": "#333333",
+              "font-size": "14",
+              "color": "#FFFFFF",
+              "text-align": "center"
+            },
+            "header": {
+              "background-color": "#444444",
+              "font-size": "16",
+              "color": "#FFFFFF"
+            },
+            "scrollbar": {
+              "width": "12",
+              "background-color": "#777",
+              "handle-color": "#888"
+            }
+          }
+        },
+        {
+          "type": "label",
+          "id": "messageLabel",
+          "position": [180, 210],
+          "size": [200, 50],
+          "style": {
+            "font-size": "14",
+            "color": "red"
+          }
+        }
+      ]
+    }
+  ]
