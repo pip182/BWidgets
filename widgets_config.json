@@ -1,105 +1,78 @@
-[
-    {
-      "type": "widgetContainer",
-      "position": [50, 50],
-      "size": [400, 300],
-      "title": {
-        "text": "Data Container",
-        "style": {
-          "font-size": "18",
-          "color": "black"
-        }
-      },
-      "closable": true,
-      "closeButton": {
-        "text": "Close",
-        "position": [350, 10],
+
+{
+  "user_config": {
+    "user": "Alice",
+    "theme": "dark"
+  },
+  "Widget Container1": {
+    "title": "System Monitor",
+    "geometry": [50, 50, 800, 600],
+    "layout": "QGridLayout",
+    "widgets": [
+      {
+        "type": "label",
+        "text": "System Monitor",
+        "row": 0,
+        "column": 0,
+        "size": {"width": 400, "height": 50},
         "style": {
           "color": "white",
-          "background-color": "red",
-          "border": "2px solid white",
-          "font-size": "14"
+          "font-size": "18px",
+          "font-weight": "bold"
         }
       },
-      "style": {
-        "background-color": "rgba(0, 0, 0, 150)",
-        "border": "2px solid black",
-        "border-radius": "0"
-      },
-      "widgets": [
-        {
-          "type": "button",
-          "text": "Load Data into Table",
-          "position": [10, 50],
-          "size": [150, 50],
-          "style": {
-            "background-color": "lightgreen",
-            "font-size": "16"
-          },
-          "action": [
-            {
-              "type": "shell",
-              "command": "echo 'Name, Age\\nAlice, 30\\nBob, 25'",
-              "outputTarget": "dataTable"
-            }
-          ]
-        },
-        {
-          "type": "button",
-          "text": "Show Message in Label",
-          "position": [10, 120],
-          "size": [150, 50],
-          "style": {
-            "background-color": "lightblue",
-            "font-size": "16"
-          },
-          "action": [
-            {
-              "type": "python",
-              "function": "greet_user",
-              "outputTarget": "messageLabel"
-            }
-          ]
-        },
-        {
-          "type": "table",
-          "id": "dataTable",
-          "position": [180, 50],
-          "size": [200, 150],
-          "columns": ["Name", "Age"],
-          "style": {
-            "table": {
-              "background-color": "#2E2E2E",
-              "border": "1px solid #666"
-            },
-            "cell": {
-              "background-color": "#333333",
-              "font-size": "14",
-              "color": "#FFFFFF",
-              "text-align": "center"
-            },
-            "header": {
-              "background-color": "#444444",
-              "font-size": "16",
-              "color": "#FFFFFF"
-            },
-            "scrollbar": {
-              "width": "12",
-              "background-color": "#777",
-              "handle-color": "#888"
-            }
-          }
-        },
-        {
-          "type": "label",
-          "id": "messageLabel",
-          "position": [180, 210],
-          "size": [200, 50],
-          "style": {
-            "font-size": "14",
-            "color": "red"
-          }
+      {
+        "type": "latency_chart",
+        "target_host": "google.com",
+        "interval": 1000,
+        "max_points": 180,
+        "irregular_factor": 3,
+        "row": 1,
+        "column": 0,
+        "size": {"width": 600, "height": 300},
+        "style": {
+          "background-color": "#ffffff",
+          "font-size": "14px"
         }
-      ]
-    }
-  ]
+      },
+      {
+        "type": "button",
+        "text": "Run Diagnostics",
+        "row": 2,
+        "column": 0,
+        "action": [
+          {
+            "type": "notification",
+            "message": "Diagnostics started."
+          }
+        ],
+        "size": {"width": 200, "height": 50},
+        "style": {
+          "background-color": "lightblue",
+          "font-size": "14px"
+        }
+      }
+    ]
+  },
+  "Widget Container2": {
+    "title": "Diagnostics",
+    "geometry": [900, 50, 600, 400],
+    "layout": "QVBoxLayout",
+    "widgets": [
+      {
+        "type": "table",
+        "data": [
+          ["Metric", "Value"],
+          ["CPU Usage", "Loading..."],
+          ["Memory Usage", "Loading..."]
+        ],
+        "size": {"width": 400, "height": 200},
+        "style": {
+          "background-color": "white",
+          "font-size": "12px",
+          "border": "1px solid #ccc"
+        }
+      }
+    ]
+  }
+}
