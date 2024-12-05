@@ -4,14 +4,22 @@ from widgets.base_widget import BaseWidget
 
 
 class Dropdown(BaseWidget):
-    """Dropdown widget for selections."""
-
-    def __init__(self, options, actions, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dropdown = QComboBox(self)
+    def __init__(self, options, actions=None, alignment="center", margins=None, style=None, *args, **kwargs):
+        self.dropdown = QComboBox()
         self.dropdown.addItems(options)
-        self.dropdown.currentIndexChanged.connect(self.on_selection)
+
+        # Add dropdown actions
+        if actions:
+            self.dropdown.currentIndexChanged.connect(self.execute_actions)
+
         self.actions = actions
+        super().__init__(self.dropdown, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+
+    def execute_actions(self, index):
+        if self.actions:
+            for action in self.actions:
+                if action["type"] == "notification":
+                    print(action.get("message", f"Selected index: {index}"))
 
     def on_selection(self):
         """Trigger actions when an option is selected."""

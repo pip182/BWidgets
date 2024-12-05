@@ -1,23 +1,25 @@
-
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QLabel
-from PySide6.QtCore import QTimer
 from widgets.base_widget import BaseWidget
 
 
 class TimerWidget(BaseWidget):
-    """Countdown timer widget."""
+    def __init__(self, duration, alignment="center", margins=None, style=None, *args, **kwargs):
+        self.time_left = duration
+        self.timer = QTimer()
 
-    def __init__(self, duration, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.duration = duration
-        self.label = QLabel(f"Time Remaining: {duration}s", self)
-        self.timer = QTimer(self)
+        self.label = QLabel(f"Time Left: {self.time_left} seconds")
+        self.label.setAlignment(Qt.AlignCenter)
+
         self.timer.timeout.connect(self.update_timer)
         self.timer.start(1000)
 
+        super().__init__(self.label, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+
     def update_timer(self):
-        """Update the remaining time and stop when complete."""
-        self.duration -= 1
-        self.label.setText(f"Time Remaining: {self.duration}s")
-        if self.duration <= 0:
+        if self.time_left > 0:
+            self.time_left -= 1
+            self.label.setText(f"Time Left: {self.time_left} seconds")
+        else:
             self.timer.stop()
+            self.label.setText("Time's up!")

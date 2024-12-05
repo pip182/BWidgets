@@ -1,8 +1,7 @@
 ping3==4.0.8
 psutil==6.1.0
-PyQt5-Qt5==5.15.15
-PyQt5_sip==12.15.0
 PySide6==6.8.0.2
 PySide6_Addons==6.8.0.2
 PySide6_Essentials==6.8.0.2
+PyYAML==6.0.2
 shiboken6==6.8.0.2

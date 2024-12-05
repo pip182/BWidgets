@@ -1,0 +1,80 @@
+user_config:
+  user: "Alice"
+  theme: "dark"
+
+Widget Container1:
+  title: "System Monitor"
+  debug: true
+  geometry: [50, 50, 1800, 400]
+  layout: "vertical"
+  z-order: "always_above"
+  frameless: true
+  padding: [10, 10, 10, 10]
+  margins: [20, 20, 20, 20]
+  widgets:
+    - type: "label"
+      text: "System Monitor"
+      alignment: "left"
+      row: 0
+      column: 0
+      size:
+        width: 400
+        height: 40
+      margins: [5, 5, 5, 5]
+      style:
+        color: "white"
+        font-size: "18px"
+        font-weight: "bold"
+
+    - type: "latency_chart"
+      target_host: "google.com"
+      interval: 1000
+      max_points: 180
+      irregular_factor: 3
+      row: 1
+      column: 0
+      size:
+        width: 100
+        height: 300
+      margins: [10, 10, 10, 10]
+      style:
+        background-color: "#ffffff"
+        color: "#666"
+        font-size: "14px"
+
+    - type: "button"
+      text: "Run Diagnostics"
+      row: 2
+      column: 0
+      action:
+        - type: "notification"
+          message: "Diagnostics started."
+      size:
+        width: 200
+        height: 50
+      margins: [5, 5, 5, 5]
+      style:
+        background-color: "lightblue"
+        font-size: "14px"
+
+Widget Container2:
+  title: "Diagnostics"
+  geometry: [100, 150, 600, 400]
+  layout: "grid"
+  padding: [10, 10, 10, 10]
+  margins: [20, 20, 20, 20]
+  widgets:
+    - type: "table"
+      data:
+        - ["Metric", "Value"]
+        - ["CPU Usage", "Loading..."]
+        - ["Memory Usage", "Loading..."]
+      size:
+        width: 600
+        height: 400
+      margins: [10, 10, 10, 10]
+      style:
+        background-color: "white"
+        font-size: "12px"
+        border: "1px solid #ccc"
+        color: "black"
