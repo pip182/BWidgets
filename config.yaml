@@ -11,6 +11,19 @@ Widget Container1:
   frameless: true
   padding: [10, 10, 10, 10]
   margins: [20, 20, 20, 20]
+  context_menu_style:
+    background-color: "#2e2e2e"  # Dark background for the menu
+    color: "#ffffff"             # White text for menu items
+    border: "1px solid #444"     # Border styling
+    item_style:
+      padding: "8px 20px"
+      font-size: "14px"
+      color: "#ffffff"
+    item_hover_style:
+      background-color: "#444"
+      color: "#00ff00"           # Highlight color for text on hover
+  style:
+    background-color: "#555"
   widgets:
     - type: "label"
       text: "System Monitor"
@@ -65,13 +78,9 @@ Widget Container2:
   margins: [20, 20, 20, 20]
   widgets:
     - type: "table"
-      data:
-        - ["Metric", "Value"]
-        - ["CPU Usage", "Loading..."]
-        - ["Memory Usage", "Loading..."]
-      size:
-        width: 600
-        height: 400
+      columns: ["Name", "Age", "Location"]  # Show only these columns
+      data_provider: "local_actions.get_user_data"
+      refresh_interval: 5000  # Refresh data every 5 seconds
       margins: [10, 10, 10, 10]
       style:
         background-color: "white"

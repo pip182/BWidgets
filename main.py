@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QGridLayout,
     QWidget,
-    QMenu
+    QMenu,
+    QSizePolicy
 )
 from widgets.label import Label
 from widgets.button import Button
@@ -76,7 +77,9 @@ def create_widget(widget_config, debug=False):
         )
     elif widget_type == "table":
         widget = Table(
-            data=widget_config["data"],
+            data=widget_config.get("data", []),  # Fallback to empty list if no data is provided
+            columns=widget_config.get("columns", None),
+            data_provider=widget_config.get("data_provider", None),
             alignment=alignment,
             margins=margins,
             style=style
@@ -159,10 +162,10 @@ class WidgetApp(QMainWindow):
         elif z_order == "always_below":
             self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnBottomHint)
 
-        # Apply window-level styles
-        window_style = container_config.get("style", {})
-        apply_style(self, window_style)
+        # Store container configuration
+        self.container_config = container_config
 
+        # Create and set the central widget container
         container = create_widget_container(container_config)
         self.setCentralWidget(container)
 
@@ -182,10 +185,32 @@ class WidgetApp(QMainWindow):
     def show_context_menu(self, position):
         """Show the context menu with the option to close or toggle frameless."""
         menu = QMenu(self)
+
+        # Apply context menu style from the configuration
+        context_menu_style = self.container_config.get("context_menu_style", {})
+        item_style = context_menu_style.get("item_style", {})
+        item_hover_style = context_menu_style.get("item_hover_style", {})
+
+        if context_menu_style:
+            css = [
+                f"QMenu {{ {key}: {value}; }}" for key, value in context_menu_style.items() if key not in ["item_style", "item_hover_style"]
+            ]
+            if item_style:
+                css.append(
+                    f"QMenu::item {{ {'; '.join([f'{k}: {v}' for k, v in item_style.items()])}; }}"
+                )
+            if item_hover_style:
+                css.append(
+                    f"QMenu::item:selected {{ {'; '.join([f'{k}: {v}' for k, v in item_hover_style.items()])}; }}"
+                )
+            menu.setStyleSheet(" ".join(css))
+
+        # Add actions to the context menu
         toggle_frameless_action = menu.addAction("Toggle Frameless")
         close_action = menu.addAction("Close")
         action = menu.exec(position)
 
+        # Handle the selected action
         if action == toggle_frameless_action:
             self.is_frameless = not self.is_frameless
             self.toggle_frameless(self.is_frameless)
