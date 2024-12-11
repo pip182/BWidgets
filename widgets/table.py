@@ -1,5 +1,6 @@
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView
+from PySide6.QtGui import QColor, QBrush
 from widgets.base_widget import BaseWidget
 import importlib
 
@@ -22,6 +23,7 @@ class Table(BaseWidget):
         self.columns = columns
         self.data_provider = data_provider
         self.refresh_interval = refresh_interval
+        self.style = style or {}
 
         # Fetch data from the provider if specified
         if data_provider:
@@ -31,8 +33,17 @@ class Table(BaseWidget):
         if data:
             self.populate_table(data)
 
+        # Apply styles including padding
+        self.apply_table_styles()
+
         # Adjust table settings
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Apply header alignment if specified
+        header_style = self.style.get("header_style", {})
+        if "alignment" in header_style:
+            alignment = self.parse_alignment(header_style["alignment"])
+            self.table.horizontalHeader().setDefaultAlignment(alignment)
 
         # Start refresh timer if interval is provided
         if refresh_interval and data_provider:
@@ -42,6 +53,16 @@ class Table(BaseWidget):
             self.timer.start(refresh_interval)
 
         super().__init__(self.table, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+
+    def apply_table_styles(self):
+        """Apply table-specific styles including cell padding."""
+        padding = self.style.get("padding", "0px")  # Default to no padding
+        stylesheet = f"""
+            QTableWidget::item {{
+                padding: {padding};
+            }}
+        """
+        self.table.setStyleSheet(stylesheet)
 
     def fetch_data(self):
         """Fetch data from the provided function."""
@@ -76,10 +97,48 @@ class Table(BaseWidget):
         for row_idx, row_data in enumerate(data):
             for col_idx, col_name in enumerate(header_labels):
                 value = row_data.get(col_name, "")
-                self.table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                self.apply_cell_style(item, col_name, value)
+                self.table.setItem(row_idx, col_idx, item)
 
     def refresh_data(self):
         """Refresh the table data."""
         print("Refreshing table data...")
         data = self.fetch_data()
         self.populate_table(data)
+
+    def apply_cell_style(self, item, column, value):
+        """Apply styles to a table cell."""
+        cell_style = self.style.get("cell_style", {})
+        default_style = cell_style.get("default", {})
+        conditions = cell_style.get("conditions", [])
+
+        # Apply default styles
+        if "background-color" in default_style:
+            item.setBackground(QBrush(QColor(default_style["background-color"])))
+        if "color" in default_style:
+            item.setForeground(QBrush(QColor(default_style["color"])))
+        if "alignment" in default_style:
+            alignment = self.parse_alignment(default_style["alignment"])
+            item.setTextAlignment(alignment)
+
+        # Apply conditional styles
+        for condition in conditions:
+            if condition.get("column") == column:
+                condition_value = condition.get("value", None)
+                if self.meets_condition(value, condition_value):
+                    if "background-color" in condition:
+                        item.setBackground(QBrush(QColor(condition["background-color"])))
+                    if "color" in condition:
+                        item.setForeground(QBrush(QColor(condition["color"])))
+
+    def meets_condition(self, value, condition_value):
+        """Check if the value meets the condition."""
+        if isinstance(condition_value, str) and condition_value.startswith(">"):
+            try:
+                return float(value) > float(condition_value[1:])
+            except ValueError:
+                return False
+        elif value == condition_value:
+            return True
+        return False

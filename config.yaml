@@ -5,7 +5,7 @@ user_config:
 Widget Container1:
   title: "System Monitor"
   debug: true
-  geometry: [50, 50, 1800, 400]
+  geometry: [50, 50, 500, 400]
   layout: "vertical"
   z-order: "always_above"
   frameless: true
@@ -78,12 +78,22 @@ Widget Container2:
   margins: [20, 20, 20, 20]
   widgets:
     - type: "table"
-      columns: ["Name", "Age", "Location"]  # Show only these columns
+      columns: ["Name", "Age", "Location"]
       data_provider: "local_actions.get_user_data"
-      refresh_interval: 5000  # Refresh data every 5 seconds
+      refresh_interval: 5000
       margins: [10, 10, 10, 10]
       style:
-        background-color: "white"
-        font-size: "12px"
-        border: "1px solid #ccc"
-        color: "black"
+        padding: "5px"
+        cell_style:
+          default:
+            background-color: "#ffffaa"
+            color: "#000000"
+          conditions:
+            - column: "Age"
+              value: ">30"
+              background-color: "#ffcccc"  # Highlight cells in red for Age > 30
+              color: "#000000"
+            - column: "Location"
+              value: "New York"
+              background-color: "#ccffcc"  # Highlight cells in green for Location "USA"
+              color: "#000000"

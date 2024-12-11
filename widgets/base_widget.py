@@ -15,15 +15,8 @@ class BaseWidget(QWidget):
         margins = margins or [0, 0, 0, 0]
         self.layout.setContentsMargins(*margins)
 
-        # Map alignment strings to Qt alignment flags
-        alignment_map = {
-            "center": Qt.AlignCenter,
-            "left": Qt.AlignLeft,
-            "right": Qt.AlignRight,
-            "top": Qt.AlignTop,
-            "bottom": Qt.AlignBottom,
-        }
-        self.layout.setAlignment(alignment_map.get(alignment, Qt.AlignCenter))
+        # Set alignment
+        self.layout.setAlignment(self.parse_alignment(alignment))
 
         # Add the content widget if provided
         if content_widget:
@@ -37,3 +30,15 @@ class BaseWidget(QWidget):
         """Apply CSS-like styling to the widget."""
         css = [f"{key}: {value};" for key, value in style.items()]
         self.setStyleSheet(" ".join(css))
+
+    @staticmethod
+    def parse_alignment(alignment_str):
+        """Parse alignment string into Qt alignment flag."""
+        alignment_map = {
+            "left": Qt.AlignLeft,
+            "right": Qt.AlignRight,
+            "center": Qt.AlignCenter,
+            "top": Qt.AlignTop,
+            "bottom": Qt.AlignBottom
+        }
+        return alignment_map.get(alignment_str.lower(), Qt.AlignCenter)

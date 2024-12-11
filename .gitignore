@@ -8,3 +8,7 @@ __pycache__/
 device_status.log
 
 local_config.py
+
+*.zip
+
+data/
