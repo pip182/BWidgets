@@ -3,14 +3,22 @@ from widgets.base_widget import BaseWidget
 
 
 class Button(BaseWidget):
-    def __init__(self, text, actions, alignment="center", margins=None, style=None, *args, **kwargs):
+    def __init__(self, text="", actions=None, data_provider=None, results_handler=None, *args, **kwargs):
+        super().__init__(data_provider=data_provider, results_handler=results_handler, *args, **kwargs)
         self.button = QPushButton(text)
-        self.button.clicked.connect(self.execute_actions)
-        self.actions = actions
+        self.actions = actions or []
+        self.update_content()
 
-        super().__init__(self.button, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+        self.button.clicked.connect(self.on_click)
 
-    def execute_actions(self):
+    def on_click(self):
+        """Execute actions when the button is clicked."""
         for action in self.actions:
-            if action["type"] == "notification":
-                print(action.get("message", "Button clicked!"))
+            print(f"Executing action: {action}")
+
+    def update_content(self):
+        """Update the button text dynamically."""
+        data = self.fetch_data()
+        if data is not None:
+            data = self.handle_results(data)
+            self.button.setText(str(data))

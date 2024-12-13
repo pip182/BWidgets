@@ -1,10 +1,4 @@
-Here’s the updated `README.md` reflecting the change from JSON to YAML configuration:
-
----
-
-### `README.md`
-
-# Widget Application
+### Widget Application
 
 This is a customizable desktop widget application. It allows users to create interactive widgets such as labels, buttons, latency charts, and more, based on a configuration file written in YAML.
 
@@ -29,76 +23,15 @@ This is a customizable desktop widget application. It allows users to create int
 
 ---
 
-## Configuration File: `config.yaml`
-
-The configuration file defines the layout, behavior, and appearance of widgets and their containers. It uses the YAML format, replacing the previous JSON configuration.
-
-### Example Configuration
-
-```yaml
-user_config:
-  user: "Alice"
-  theme: "dark"
-
-Widget Container1:
-  title: "System Monitor"
-  debug: true
-  geometry: [50, 50, 800, 400]
-  layout: "vertical"
-  z-order: "always_above"
-  frameless: true
-  padding: [10, 10, 10, 10]
-  margins: [20, 20, 20, 20]
-  widgets:
-    - type: "label"
-      text: "System Monitor"
-      alignment: "center"
-      size:
-        width: 300
-        height: 20
-      margins: [5, 5, 5, 5]
-      style:
-        color: "white"
-        font-size: "18px"
-        font-weight: "bold"
-
-    - type: "latency_chart"
-      target_host: "google.com"
-      interval: 1000
-      max_points: 180
-      irregular_factor: 3
-      size:
-        width: 600
-        height: 300
-      margins: [10, 10, 10, 10]
-      style:
-        background-color: "#ffffff"
-        color: "#666"
-        font-size: "14px"
-
-    - type: "button"
-      text: "Run Diagnostics"
-      action:
-        - type: "notification"
-          message: "Diagnostics started."
-      size:
-        width: 200
-        height: 50
-      margins: [5, 5, 5, 5]
-      style:
-        background-color: "lightblue"
-        font-size: "14px"
-```
-
----
-
 ## Configuration Fields
 
 ### General Fields
+
 - **`user_config`**:
   - Defines global settings like user preferences and themes.
 
 ### Widget Containers
+
 Each container is a window that contains widgets.
 
 - **`title`** (string): Title of the container window.
@@ -115,7 +48,9 @@ Each container is a window that contains widgets.
 ### Widgets
 
 #### Common Fields
+
 All widgets support the following fields:
+
 - **`type`** (string): Type of widget (`label`, `button`, `latency_chart`, etc.).
 - **`alignment`** (string): Widget alignment (`center`, `left`, `right`, `top`, `bottom`).
 - **`size`** (dict): Defines widget size: `{"width": <width>, "height": <height>}`.
@@ -191,12 +126,65 @@ All widgets support the following fields:
 
 ---
 
-## Changes from Previous Versions
-- **Configuration Format**:
-  - Switched from JSON to YAML for improved readability.
-  - Configurations are now stored in `config.yaml`.
+## Data Provider
 
-- **Centralized Widget Logic**:
-  - Widgets inherit alignment, margins, and styling functionality from `BaseWidget`.
+The `data_provider` field in `config.yaml` allows widgets to dynamically fetch data from various sources. It supports the following types:
+
+1. **Python Functions or Methods**:
+   - Specify the full module path to a Python function or method.
+   - Example:
+     ```yaml
+     data_provider: "local_actions.get_user_data"
+     ```
+
+2. **Python Classes**:
+   - Specify the full module path to a Python class. The class will be instantiated, and if it defines a `__call__` method, that method will be executed.
+   - Example:
+     ```yaml
+     data_provider: "custom_module.CustomClass"
+     ```
+
+3. **Shell Commands**:
+   - Use a leading `!` to indicate a shell command. The command will be executed, and its output will be used as the data.
+   - Example:
+     ```yaml
+     data_provider: "!ls -la"
+     ```
+
+4. **Callable Objects**:
+   - You can pass a callable object directly in the Python code instead of using YAML.
+
+---
+
+## Results Handler
+
+The `results-handler` field specifies how the data fetched by `data_provider` is processed and displayed in the widget.
+
+### Example
+
+For a table widget:
+```yaml
+data_provider: "local_actions.get_user_data"
+results-handler:
+  type: "table"
+  display_fields: ["Name", "Age", "Department"]
+```
+
+For a latency chart:
+```yaml
+data_provider: "tasks.check_ping"
+results-handler:
+  action: "ping"
+  field: "latency"
+```
+
+---
+
+## Changes from Previous Versions
+
+- **Data Provider Enhancements**:
+  - Supports Python classes, methods, shell commands, and callable objects.
+- **Results Handling**:
+  - Flexible configuration to process and display dynamic data.
 
 ---

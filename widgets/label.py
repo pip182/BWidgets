@@ -1,23 +1,16 @@
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 from widgets.base_widget import BaseWidget
 
 
 class Label(BaseWidget):
-    def __init__(self, text, alignment="center", margins=None, style=None, *args, **kwargs):
-        # Map alignment strings to Qt alignment flags
-        alignment_map = {
-            "center": Qt.AlignCenter,
-            "left": Qt.AlignLeft,
-            "right": Qt.AlignRight,
-            "top": Qt.AlignTop,
-            "bottom": Qt.AlignBottom,
-        }
-        alignment_flag = alignment_map.get(alignment, Qt.AlignCenter)
+    def __init__(self, text="", alignment="center", data_provider=None, results_handler=None, *args, **kwargs):
+        super().__init__(data_provider=data_provider, results_handler=results_handler, *args, **kwargs)
+        self.label = QLabel(text)
+        self.update_content()
 
-        # Create the QLabel with correct alignment
-        content_widget = QLabel(text)
-        content_widget.setAlignment(alignment_flag)
-
-        # Initialize BaseWidget
-        super().__init__(content_widget, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+    def update_content(self):
+        """Update the label content dynamically."""
+        data = self.fetch_data()
+        if data is not None:
+            data = self.handle_results(data)
+            self.label.setText(str(data))

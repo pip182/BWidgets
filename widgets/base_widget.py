@@ -1,44 +1,63 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt
+import importlib
 
 
 class BaseWidget(QWidget):
-    """Base widget class that provides alignment, layout, and styling."""
+    ALIGNMENT_MAP = {
+        "center": Qt.AlignCenter,
+        "left": Qt.AlignLeft,
+        "right": Qt.AlignRight,
+        "top": Qt.AlignTop,
+        "bottom": Qt.AlignBottom,
+    }
 
-    def __init__(self, content_widget=None, alignment="center", margins=None, style=None, *args, **kwargs):
+    def __init__(self, alignment="center", data_provider=None, results_handler=None, *args, **kwargs):
+        """
+        Base class for widgets with support for data providers, result handlers, and alignment.
+
+        Args:
+            alignment: String representing widget alignment ("center", "left", etc.).
+            data_provider: String specifying the function or method to fetch dynamic data.
+            results_handler: String specifying the function to process data.
+        """
         super().__init__(*args, **kwargs)
-
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
-
-        # Default to no margins if not provided
-        margins = margins or [0, 0, 0, 0]
-        self.layout.setContentsMargins(*margins)
-
-        # Set alignment
-        self.layout.setAlignment(self.parse_alignment(alignment))
-
-        # Add the content widget if provided
-        if content_widget:
-            self.layout.addWidget(content_widget)
-
-        # Apply styles if provided
-        if style:
-            self.apply_style(style)
-
-    def apply_style(self, style):
-        """Apply CSS-like styling to the widget."""
-        css = [f"{key}: {value};" for key, value in style.items()]
-        self.setStyleSheet(" ".join(css))
+        self.data_provider = data_provider
+        self.results_handler = results_handler
+        self.alignment = self.parse_alignment(alignment)
 
     @staticmethod
     def parse_alignment(alignment_str):
-        """Parse alignment string into Qt alignment flag."""
-        alignment_map = {
-            "left": Qt.AlignLeft,
-            "right": Qt.AlignRight,
-            "center": Qt.AlignCenter,
-            "top": Qt.AlignTop,
-            "bottom": Qt.AlignBottom
-        }
-        return alignment_map.get(alignment_str.lower(), Qt.AlignCenter)
+        """Parse alignment string into Qt alignment constant."""
+        return BaseWidget.ALIGNMENT_MAP.get(alignment_str.lower(), Qt.AlignCenter)
+
+    def fetch_data(self):
+        """Fetch data using the data_provider."""
+        if not self.data_provider:
+            return None
+
+        try:
+            # Dynamically import the provider function
+            module_name, function_name = self.data_provider.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            provider_function = getattr(module, function_name)
+            data = provider_function()
+            return data
+        except (ImportError, AttributeError, ValueError) as e:
+            print(f"Error fetching data from provider '{self.data_provider}': {e}")
+            return None
+
+    def handle_results(self, data):
+        """Process data using the results_handler."""
+        if not self.results_handler:
+            return data
+
+        try:
+            # Dynamically import the handler function
+            module_name, function_name = self.results_handler.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            handler_function = getattr(module, function_name)
+            return handler_function(data)
+        except (ImportError, AttributeError, ValueError) as e:
+            print(f"Error processing results with handler '{self.results_handler}': {e}")
+            return data

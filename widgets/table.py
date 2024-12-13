@@ -6,7 +6,7 @@ import importlib
 
 
 class Table(BaseWidget):
-    def __init__(self, data=None, columns=None, data_provider=None, refresh_interval=None, alignment="center", margins=None, style=None, *args, **kwargs):
+    def __init__(self, data=None, columns=None, data_provider=None, refresh_interval=None, results_handler=None, alignment="center", margins=None, style=None, *args, **kwargs):
         """
         Create a Table widget.
 
@@ -15,6 +15,7 @@ class Table(BaseWidget):
             columns: List of columns to display (optional).
             data_provider: A string specifying a function to fetch dynamic data (optional).
             refresh_interval: Interval in milliseconds to refresh the data (optional).
+            results_handler: A string specifying a function to handle and transform the data (optional).
             alignment: Alignment of the widget.
             margins: Margins for the widget.
             style: CSS-like styles for the widget.
@@ -23,11 +24,16 @@ class Table(BaseWidget):
         self.columns = columns
         self.data_provider = data_provider
         self.refresh_interval = refresh_interval
+        self.results_handler = results_handler
         self.style = style or {}
 
         # Fetch data from the provider if specified
         if data_provider:
             data = self.fetch_data()
+
+        # Handle results using the results_handler if provided
+        if data and results_handler:
+            data = self.handle_results(data)
 
         # Populate the table
         if data:
@@ -82,6 +88,18 @@ class Table(BaseWidget):
             print(f"Error fetching data from provider '{self.data_provider}': {e}")
             return []
 
+    def handle_results(self, data):
+        """Transform or filter data using the results handler."""
+        try:
+            # Dynamically import the results handler function
+            module_name, function_name = self.results_handler.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            handler_function = getattr(module, function_name)
+            return handler_function(data)
+        except (ImportError, AttributeError, ValueError) as e:
+            print(f"Error processing results with handler '{self.results_handler}': {e}")
+            return data
+
     def populate_table(self, data):
         """Populate the table with data."""
         # Use specified columns or extract from data
@@ -105,6 +123,11 @@ class Table(BaseWidget):
         """Refresh the table data."""
         print("Refreshing table data...")
         data = self.fetch_data()
+
+        # Handle results using the results_handler if provided
+        if data and self.results_handler:
+            data = self.handle_results(data)
+
         self.populate_table(data)
 
     def apply_cell_style(self, item, column, value):
