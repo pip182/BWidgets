@@ -1,12 +1,22 @@
 from PySide6.QtCore import QTimer, Qt
-from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QVBoxLayout
 from PySide6.QtGui import QColor, QBrush
 from widgets.base_widget import BaseWidget
-import importlib
-
 
 class Table(BaseWidget):
-    def __init__(self, data=None, columns=None, data_provider=None, refresh_interval=None, results_handler=None, alignment="center", margins=None, style=None, *args, **kwargs):
+    def __init__(
+        self,
+        data=None,
+        columns=None,
+        data_provider=None,
+        interval=None,
+        results_handler=None,
+        alignment="center",
+        margins=None,
+        style=None,
+        *args,
+        **kwargs,
+    ):
         """
         Create a Table widget.
 
@@ -14,8 +24,8 @@ class Table(BaseWidget):
             data: Static list of rows for the table (optional).
             columns: List of columns to display (optional).
             data_provider: A string specifying a function to fetch dynamic data (optional).
-            refresh_interval: Interval in milliseconds to refresh the data (optional).
-            results_handler: A string specifying a function to handle and transform the data (optional).
+            interval: Interval in milliseconds to refresh the data (optional).
+            results_handler: A string specifying a function to process data (optional).
             alignment: Alignment of the widget.
             margins: Margins for the widget.
             style: CSS-like styles for the widget.
@@ -23,45 +33,45 @@ class Table(BaseWidget):
         self.table = QTableWidget()
         self.columns = columns
         self.data_provider = data_provider
-        self.refresh_interval = refresh_interval
+        self.interval = interval
         self.results_handler = results_handler
         self.style = style or {}
 
-        # Fetch data from the provider if specified
-        if data_provider:
-            data = self.fetch_data()
+        # Initialize BaseWidget
+        super().__init__(
+            alignment=alignment,
+            margins=margins,
+            data_provider=data_provider,
+            results_handler=results_handler,
+            *args,
+            **kwargs,
+        )
 
-        # Handle results using the results_handler if provided
-        if data and results_handler:
-            data = self.handle_results(data)
+        # Add loading label and table to the layout
+        self.add_child_widget(self.table)
 
-        # Populate the table
-        if data:
-            self.populate_table(data)
+        self.show_loading()
 
-        # Apply styles including padding
+        # Apply table styles
         self.apply_table_styles()
 
         # Adjust table settings
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        # Apply header alignment if specified
-        header_style = self.style.get("header_style", {})
-        if "alignment" in header_style:
-            alignment = self.parse_alignment(header_style["alignment"])
-            self.table.horizontalHeader().setDefaultAlignment(alignment)
+        # Schedule initial data fetch
+        if data_provider:
+            self.fetch_data()  # Ensure asynchronous fetching
+        elif data:
+            self.populate_table(data)
 
         # Start refresh timer if interval is provided
-        if refresh_interval and data_provider:
-            print(f"Starting data refresh timer with interval {refresh_interval} ms")
+        if interval and data_provider:
             self.timer = QTimer()
-            self.timer.timeout.connect(self.refresh_data)
-            self.timer.start(refresh_interval)
-
-        super().__init__(self.table, alignment=alignment, margins=margins, style=style, *args, **kwargs)
+            self.timer.timeout.connect(self.fetch_data)
+            self.timer.start(interval)
 
     def apply_table_styles(self):
-        """Apply table-specific styles including cell padding."""
+        """Apply table-specific styles."""
         padding = self.style.get("padding", "0px")  # Default to no padding
         stylesheet = f"""
             QTableWidget::item {{
@@ -70,65 +80,41 @@ class Table(BaseWidget):
         """
         self.table.setStyleSheet(stylesheet)
 
-    def fetch_data(self):
-        """Fetch data from the provided function."""
-        try:
-            # Dynamically import the provider function
-            module_name, function_name = self.data_provider.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            provider_function = getattr(module, function_name)
-            data = provider_function()
+    def process_data(self, data):
+        """Process the fetched data and populate the table."""
+        if not isinstance(data, list):
+            print("Expected data to be a list, but got:", type(data))
+            return
 
-            # Validate that data is a list of dictionaries
-            if isinstance(data, list) and all(isinstance(item, dict) for item in data):
-                return data
-            else:
-                raise ValueError(f"Data provider must return a list of dictionaries, got {type(data)}")
-        except (ImportError, AttributeError, ValueError) as e:
-            print(f"Error fetching data from provider '{self.data_provider}': {e}")
-            return []
-
-    def handle_results(self, data):
-        """Transform or filter data using the results handler."""
-        try:
-            # Dynamically import the results handler function
-            module_name, function_name = self.results_handler.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            handler_function = getattr(module, function_name)
-            return handler_function(data)
-        except (ImportError, AttributeError, ValueError) as e:
-            print(f"Error processing results with handler '{self.results_handler}': {e}")
-            return data
+        # Populate the table with processed data
+        self.populate_table(data)
+        self.show_table()
 
     def populate_table(self, data):
         """Populate the table with data."""
-        # Use specified columns or extract from data
-        if self.columns:
-            header_labels = self.columns
-        else:
-            header_labels = list(data[0].keys()) if data else []
+        # Ensure columns are a dictionary of key-value pairs
+        header_mapping = self.columns.keys()
+        header_labels = self.columns.values()
 
+        # Configure table dimensions and headers
         self.table.setColumnCount(len(header_labels))
         self.table.setHorizontalHeaderLabels(header_labels)
         self.table.setRowCount(len(data))
 
+        print("Populating table with data...", header_labels, len(data))
+
+        # Populate the table using the key-value mapping
         for row_idx, row_data in enumerate(data):
-            for col_idx, col_name in enumerate(header_labels):
-                value = row_data.get(col_name, "")
+            for col_idx, (data_key, column_header) in enumerate(self.columns.items()):
+                # Match data_key with keys in row_data
+                value = str(row_data.get(data_key, ""))
                 item = QTableWidgetItem(value)
-                self.apply_cell_style(item, col_name, value)
+                print(f"Setting item at ({row_idx}, {col_idx}): {value}, header: {column_header}")
+                self.apply_cell_style(item, column_header, value)
                 self.table.setItem(row_idx, col_idx, item)
 
-    def refresh_data(self):
-        """Refresh the table data."""
-        print("Refreshing table data...")
-        data = self.fetch_data()
-
-        # Handle results using the results_handler if provided
-        if data and self.results_handler:
-            data = self.handle_results(data)
-
-        self.populate_table(data)
+        # Trigger table redraw
+        self.table.viewport().update()
 
     def apply_cell_style(self, item, column, value):
         """Apply styles to a table cell."""
@@ -156,12 +142,47 @@ class Table(BaseWidget):
                         item.setForeground(QBrush(QColor(condition["color"])))
 
     def meets_condition(self, value, condition_value):
-        """Check if the value meets the condition."""
-        if isinstance(condition_value, str) and condition_value.startswith(">"):
-            try:
+        """
+        Check if the value meets the condition.
+
+        Supported conditions:
+        - ">X" : Greater than X
+        - "<X" : Less than X
+        - ">=X" : Greater than or equal to X
+        - "<=X" : Less than or equal to X
+        - "==X" : Equal to X
+        - "!=X" : Not equal to X
+        """
+        try:
+            # Attempt to interpret value as a number if condition is numeric
+            value = float(value) if isinstance(value, (int, float, str)) and value.isdigit() else value
+        except ValueError:
+            pass
+
+        if isinstance(condition_value, str):
+            # Handle comparison operators
+            if condition_value.startswith(">="):
+                return float(value) >= float(condition_value[2:])
+            elif condition_value.startswith("<="):
+                return float(value) <= float(condition_value[2:])
+            elif condition_value.startswith(">"):
                 return float(value) > float(condition_value[1:])
-            except ValueError:
-                return False
-        elif value == condition_value:
-            return True
-        return False
+            elif condition_value.startswith("<"):
+                return float(value) < float(condition_value[1:])
+            elif condition_value.startswith("=="):
+                return value == condition_value[2:]
+            elif condition_value.startswith("!="):
+                return value != condition_value[2:]
+
+        # Exact match
+        return value == condition_value
+
+    def show_table(self):
+        """Show the table and hide the loading indicator."""
+        self.loading_label.hide()
+        self.table.show()
+
+    def show_loading(self):
+        """Show the loading indicator and hide the table."""
+        self.loading_label.show()
+        self.table.hide()

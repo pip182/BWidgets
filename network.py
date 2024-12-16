@@ -11,7 +11,7 @@ import os
 
 
 class NetworkScanner:
-    def __init__(self, subnet, data_dir="data", vendor_url=None, verbose=False):
+    def __init__(self, subnet, data_dir="data", vendor_url=None, verbose=True):
         """
         Initializes the NetworkScanner class.
         Args:
@@ -27,12 +27,17 @@ class NetworkScanner:
         self.vendor_url = vendor_url or "https://maclookup.app/downloads/json-database/get-db"
         self.mac_vendor_list = self.load_mac_vendor_list()
         self.verbose = verbose
+        self.log(f"Initialized NetworkScanner for {self.subnet}")
 
     def __call__(self):
         """
         Makes the class callable to execute a network scan directly.
         """
-        return asyncio.run(self.scan_network())
+        self.log("self.call(): Starting network scan...")
+        if asyncio.get_event_loop().is_running():
+            return asyncio.create_task(self.scan_network())
+        else:
+            return asyncio.run(self.scan_network())
 
     def log(self, message):
         """Logs a message if verbose mode is enabled."""
@@ -87,13 +92,13 @@ class NetworkScanner:
         except Exception:
             return None
 
-    async def ping_device(self, ip):
+    def ping_device(self, ip):
         """Pings a device to check if it's online and measures latency."""
-        latency = await asyncio.to_thread(self.ping3_ping, ip)
+        latency = self.ping3_ping(ip)
         self.log(f"Pinged {ip}: {'Online' if latency else 'Offline'}")
         return ip, latency
 
-    async def get_mac_address(self, ip):
+    def get_mac_address(self, ip):
         """Retrieves the MAC address of a device using ARP packets."""
         try:
             arp_request = ARP(pdst=ip)
@@ -104,19 +109,20 @@ class NetworkScanner:
         except Exception:
             return "Unknown"
 
-    async def get_netbios_name(self, ip):
+    def get_netbios_name(self, ip):
         """Queries the NetBIOS name of a device."""
         try:
             return gethostbyaddr(ip)[0]
         except Exception:
             return "Unknown"
 
-    async def scan_device(self, ip):
+    def scan_device(self, ip):
         """Scans a single device for latency, MAC address, and NetBIOS name."""
-        latency = await self.ping_device(ip)
+        self.log(f"Scanning device: {ip}")
+        latency = self.ping_device(ip)
         if latency[1] is not None:
-            mac = await self.get_mac_address(ip)
-            netbios_name = await self.get_netbios_name(ip)
+            mac = self.get_mac_address(ip)
+            netbios_name = self.get_netbios_name(ip)
             result = {
                 "ip": ip,
                 "mac": mac,
@@ -128,17 +134,41 @@ class NetworkScanner:
             return result
         return None
 
-    async def scan_network(self):
+    def scan_network(self):
         """Scans the network for active devices asynchronously."""
         self.log(f"Starting network scan for {self.subnet}...")
         network = ipaddress.IPv4Network(self.subnet, strict=False)
         tasks = [self.scan_device(str(ip)) for ip in network.hosts()]
-        devices = await asyncio.gather(*tasks)
-        return [device for device in devices if device]
+        print(tasks)
+        # devices = await asyncio.gather(*tasks)
+        return [device for device in tasks if device]
+
+
+async def ping3_ping(self, ip, timeout=1):
+    """Sends an ICMP echo request using ping3."""
+    try:
+        latency = ping(ip, timeout=timeout)
+        return round(latency * 1000) if latency else None
+    except Exception:
+        return None
+
+
+async def scan(subnet):
+    print("Scanning network...")
+    scanner = NetworkScanner(subnet, verbose=True)
+
+    result = scanner.scan_network()
+    # Check if an event loop is already running
+    # if asyncio.get_event_loop().is_running():
+    #     # Schedule the scan as a task and return its result
+    #     print("scan(): Running in existing event loop")
+    #     result = asyncio.create_task(scanner.scan_network())
+    # else:
+    #     # Run scan in a new event loop
+
+    return result
 
 
 if __name__ == "__main__":
     subnet = "192.168.1.0/24"
-    scanner = NetworkScanner(subnet, verbose=True)
-    devices = scanner()
-    print("Devices found:", devices)
+    devices = scan(subnet)
